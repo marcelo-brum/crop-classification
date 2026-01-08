@@ -6,42 +6,46 @@
 // Method: Rule-based phenological classification (no ML)
 // Author: Marcelo Lovato Brum
 // =========================================================
-// =========================================
-// 0. AOI — Santa Maria
-// =========================================
+
+// =========================================================
+// 0. Area of Interest (AOI)
+// =========================================================
 var aoi = ee.FeatureCollection(
   'projects/ee-marcelolvtb/assets/Santa_Maria_RS_WGS84'
 );
 
-// =========================================
-// 1. MAPBIOMAS 10 m — base agrícola
-// classe 19 = lavouras temporárias
-// =========================================
+// =========================================================
+// 1. Agricultural mask from MapBiomas (10 m)
+// Class 19 = temporary crops
+// =========================================================
 var mb = ee.Image(
   'projects/ee-marcelolvtb/assets/mapbiomas_10m_collection2_integration_v1-classification_2023'
 );
 
 var agri = mb.eq(19).clip(aoi);
 
-// =========================================
-// 2. FUNÇÃO NDVI (Sentinel-2)
-// =========================================
+// =========================================================
+// 2. NDVI function (Sentinel-2)
+// Cloud masking based on QA60 band
+// =========================================================
 function ndviS2(img){
   var qa = img.select('QA60');
-  var m = qa.bitwiseAnd(1<<10).eq(0)
-           .and(qa.bitwiseAnd(1<<11).eq(0));
-  return img.updateMask(m)
+  var mask = qa.bitwiseAnd(1 << 10).eq(0)
+               .and(qa.bitwiseAnd(1 << 11).eq(0));
+
+  return img.updateMask(mask)
     .divide(10000)
-    .normalizedDifference(['B8','B4'])
+    .normalizedDifference(['B8', 'B4'])
     .rename('NDVI');
 }
 
-// =========================================
-// 3. NDVI POR MÊS
-// =========================================
-function ndviMonth(y, m){
-  var start = ee.Date.fromYMD(y, m, 1);
+// =========================================================
+// 3. Monthly NDVI composites
+// =========================================================
+function ndviMonth(year, month){
+  var start = ee.Date.fromYMD(year, month, 1);
   var end   = start.advance(1, 'month');
+
   return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
     .filterBounds(aoi)
     .filterDate(start, end)
@@ -50,119 +54,121 @@ function ndviMonth(y, m){
     .clip(aoi);
 }
 
-var ndvi_dec = ndviMonth(2023,12).rename('NDVI_dec');
-var ndvi_jan = ndviMonth(2024, 1).rename('NDVI_jan');
-var ndvi_feb = ndviMonth(2024, 2).rename('NDVI_feb');
+var ndvi_dec = ndviMonth(2023, 12).rename('NDVI_dec');
+var ndvi_jan = ndviMonth(2024,  1).rename('NDVI_jan');
+var ndvi_feb = ndviMonth(2024,  2).rename('NDVI_feb');
 
-// =========================================
-// 4. STACK (apenas área agrícola)
-// =========================================
-var stack = ndvi_dec.addBands([ndvi_jan, ndvi_feb])
+// =========================================================
+// 4. NDVI temporal stack (agricultural areas only)
+// =========================================================
+var stack = ndvi_dec
+  .addBands([ndvi_jan, ndvi_feb])
   .updateMask(agri);
 
-// =========================================
-// 5. REGRA FENOLÓGICA (SIMPLIFICADA)
-// =========================================
+// =========================================================
+// 5. Phenological rules (simplified)
+// =========================================================
 
-// milho: pico cedo
-var milho = stack.select('NDVI_jan')
+// Maize: early NDVI peak
+var maize = stack.select('NDVI_jan')
   .gte(stack.select('NDVI_feb'))
   .and(stack.select('NDVI_jan')
   .gte(stack.select('NDVI_dec')))
   .and(stack.select('NDVI_jan').gte(0.45));
 
-// soja: pico tardio
-var soja = stack.select('NDVI_feb')
+// Soybean: late NDVI peak
+var soybean = stack.select('NDVI_feb')
   .gt(stack.select('NDVI_jan'))
   .and(stack.select('NDVI_feb').gte(0.45));
 
-// =========================================
-// 6. MAPA FINAL
-// 1 = soja | 2 = milho
-// =========================================
+// =========================================================
+// 6. Final crop map
+// 1 = soybean | 2 = maize
+// =========================================================
 var crop = ee.Image(0)
-  .where(soja, 1)
-  .where(milho, 2)
-  .updateMask(soja.or(milho))
+  .where(soybean, 1)
+  .where(maize,   2)
+  .updateMask(soybean.or(maize))
   .clip(aoi)
   .rename('crop');
 
-// =========================================
-// 7. VISUALIZAÇÃO
-// =========================================
+// =========================================================
+// 7. Visualization
+// =========================================================
 Map.centerObject(aoi, 10);
 
-Map.addLayer(crop,
+Map.addLayer(
+  crop,
   {min: 1, max: 2, palette: ['#228B22', '#FFD700']},
-  'Soja (verde) | Milho (amarelo) — NDVI'
+  'Soybean (green) | Maize (yellow) — NDVI'
 );
 
-Map.addLayer(aoi, {color: 'red'}, 'Limite Santa Maria');
+Map.addLayer(aoi, {color: 'red'}, 'Santa Maria boundary');
 
-// =========================================
-// 8. ÁREA (ha) — SOJA e MILHO
-// =========================================
+// =========================================================
+// 8. Area estimation (hectares)
+// =========================================================
 
-// área por pixel
+// Pixel area image
 var pixelArea = ee.Image.pixelArea();
 
-// máscaras
-var sojaMask  = crop.eq(1);
-var milhoMask = crop.eq(2);
+// Crop masks
+var soybeanMask = crop.eq(1);
+var maizeMask   = crop.eq(2);
 
-// área soja (m² → ha)
-var areaSoja = sojaMask
+// Soybean area (m² → ha)
+var areaSoybean = soybeanMask
   .multiply(pixelArea)
   .reduceRegion({
     reducer: ee.Reducer.sum(),
     geometry: aoi,
-    scale: 30,
+    scale: 30,        // 30 m used due to GEE processing constraints
     maxPixels: 1e13
   })
   .getNumber('crop')
   .divide(10000);
 
-// área milho (m² → ha)
-var areaMilho = milhoMask
+// Maize area (m² → ha)
+var areaMaize = maizeMask
   .multiply(pixelArea)
   .reduceRegion({
     reducer: ee.Reducer.sum(),
     geometry: aoi,
-    scale: 30,
+    scale: 30,        // 30 m used due to GEE processing constraints
     maxPixels: 1e13
   })
   .getNumber('crop')
   .divide(10000);
 
-// =========================================
-// 9. EXPORTAR CSV
-// =========================================
+// =========================================================
+// 9. Export results table (CSV)
+// =========================================================
 var result = ee.FeatureCollection([
   ee.Feature(null, {
-    municipio: 'Santa Maria - RS',
-    safra: '2023/2024',
-    area_soja_ha: areaSoja,
-    area_milho_ha: areaMilho,
-    metodo: 'MapBiomas + NDVI (regra fenológica, sem ML)'
+    municipality: 'Santa Maria - RS',
+    season: '2023/2024',
+    soybean_area_ha: areaSoybean,
+    maize_area_ha: areaMaize,
+    method: 'NDVI phenological rule-based classification (no ML)'
   })
 ]);
 
 Export.table.toDrive({
   collection: result,
-  description: 'Area_Soja_Milho_SantaMaria_2324_NDVI',
+  description: 'Area_Soybean_Maize_SantaMaria_2324_NDVI',
   fileFormat: 'CSV'
 });
-// =========================================
-// 10. EXPORTAR MAPA (GeoTIFF)
-// =========================================
 
+// =========================================================
+// 10. Export classified map (GeoTIFF)
+// =========================================================
 Export.image.toDrive({
   image: crop,
-  description: 'CropMap_Soja_Milho_SantaMaria_2324_NDVI',
+  description: 'CropMap_Soybean_Maize_SantaMaria_2324_NDVI',
   folder: 'GEE_exports',
-  fileNamePrefix: 'crop_soja_milho_santamaria_2324',
+  fileNamePrefix: 'crop_soybean_maize_santamaria_2324',
   region: aoi.geometry(),
-  scale: 30,              // mantido em 30 m por limitação computacional
+  scale: 30,              // kept at 30 m for computational feasibility
   crs: 'EPSG:4326',
   maxPixels: 1e13
 });
