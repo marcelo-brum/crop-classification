@@ -152,3 +152,17 @@ Export.table.toDrive({
   description: 'Area_Soja_Milho_SantaMaria_2324_NDVI',
   fileFormat: 'CSV'
 });
+// =========================================
+// 10. EXPORTAR MAPA (GeoTIFF)
+// =========================================
+
+Export.image.toDrive({
+  image: crop,
+  description: 'CropMap_Soja_Milho_SantaMaria_2324_NDVI',
+  folder: 'GEE_exports',
+  fileNamePrefix: 'crop_soja_milho_santamaria_2324',
+  region: aoi.geometry(),
+  scale: 30,              // mantido em 30 m por limitação computacional
+  crs: 'EPSG:4326',
+  maxPixels: 1e13
+});
