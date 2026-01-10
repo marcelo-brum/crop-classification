@@ -2,7 +2,7 @@
 // 0. AOI — Santa Maria
 // =========================================
 var aoi = ee.FeatureCollection(
-  'projects/ee-marcelolvtb/assets/Santa_Maria_RS_WGS84'
+  'projects/' // suba o shapefile em wgs84 para seu ambiente gee
 );
 
 // =========================================
@@ -10,7 +10,7 @@ var aoi = ee.FeatureCollection(
 // classe 19 = lavouras temporárias
 // =========================================
 var mb = ee.Image(
-  'projects/ee-marcelolvtb/assets/mapbiomas_10m_collection2_integration_v1-classification_2023'
+  'projects/ee-marcelolvtb/assets/mapbiomas_10m_collection2_integration_v1-classification_2023' // suba a máscara do MapBiomas ou outro de sua preferência
 );
 
 var agri = mb.eq(19).clip(aoi);
