@@ -1,0 +1,2 @@
+system:index,area_milho_ha,area_soja_ha,metodo,municipio,safra,.geo
+0,84.24827776441388,53933.099384330606,"MapBiomas + NDVI (regra fenológica, sem ML)",Santa Maria - RS,2023/2024,"{""type"":""MultiPoint"",""coordinates"":[]}"
