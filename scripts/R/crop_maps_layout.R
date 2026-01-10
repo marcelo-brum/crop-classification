@@ -6,8 +6,8 @@ library(ggspatial)
 # ---------------------------------------------
 # CAMINHOS
 # ---------------------------------------------
-raster_path <- "C:/Users/marce/OneDrive/Documentos/Areas cultivadas/Santa Maria - RS/Mapa_Soja_Milho_SantaMaria_2324_GeoTIFF.tif"
-shp_path    <- "C:/shapefile/Santa_Maria_RS_WGS84/Santa_Maria_RS_WGS84.shp"
+raster_path <- "C:/CAMINHO_DO_SEU_ARQUIVO/Mapa_Soja_Milho_SantaMaria_2324_GeoTIFF.tif"
+shp_path    <- "C:/CAMINHO_DO_SEU_ARQUIVO/Santa_Maria_RS_WGS84.shp"
 
 # ---------------------------------------------
 # LEITURA DOS DADOS
@@ -132,7 +132,7 @@ print(fig)
 # ---------------------------------------------
 # SALVAR
 # ---------------------------------------------
-setwd("C:/Users/marce/OneDrive/Documentos/Areas cultivadas/Santa Maria - RS")
+setwd("C:CAMINHO_PARA_ARMAZENAR")
 ggsave(
   "Mapa_Soja_Milho_SantaMaria_2324_FINAL.png",
   fig,
@@ -148,8 +148,8 @@ ggsave(
 #----
 
 
-raster_path <- "C:/Users/marce/OneDrive/Documentos/Areas cultivadas/Santa Maria - RS/Milho_Safrinha_SantaMaria_2324_GeoTIFF.tif"
-shp_path    <- "C:/shapefile/Santa_Maria_RS_WGS84/Santa_Maria_RS_WGS84.shp"
+raster_path <- "C:/CAMINHO_DO_SEU_ARQUIVO/Santa Maria - RS/Milho_Safrinha_SantaMaria_2324_GeoTIFF.tif"
+shp_path    <- "C:/CAMINHO_DO_SEU_ARQUIVO/Santa_Maria_RS_WGS84.shp"
 
 # ---------------------------------------------
 # LEITURA DOS DADOS
@@ -254,7 +254,7 @@ print(fig_safrinha)
 # ---------------------------------------------
 # SALVAR
 # ---------------------------------------------
-setwd("C:/Users/marce/OneDrive/Documentos/Areas cultivadas/Santa Maria - RS")
+setwd("C:CAMINHO_DE_DESTINO")
 ggsave(
   "Mapa_Milho_Safrinha_SantaMaria_2324_FINAL.png",
   fig_safrinha,
